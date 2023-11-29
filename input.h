@@ -10,6 +10,6 @@ typedef struct {
     unsigned int upper_limit;
 } input_params;
 
-int get_input_params(int arc, char *argv[], input_params *params);
+int get_input_params(int argc, char *argv[], input_params *params);
 
 #endif
