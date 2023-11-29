@@ -4,8 +4,8 @@
 
 #include "input.h"
 
-int get_input_params(int arc, char *argv[], input_params *params) {
-    if (arc != 5) {
+int get_input_params(int argc, char *argv[], input_params *params) {
+    if (argc != 5) {
         printf("Usage: %s <buffer_size> <num_producers> <num_consumers> <upper_limit>\n", argv[0]);
         return 1;
     }
