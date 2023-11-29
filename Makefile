@@ -1,2 +1,2 @@
 default:
-	gcc -Wall main.c input.c
+	gcc -Wall main.c helpers.c

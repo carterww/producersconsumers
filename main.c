@@ -3,70 +3,68 @@
 #include <pthread.h>
 #include <unistd.h>
 
-# include "input.h"
-
-input_params params;
-
-
-// Define the buffer and shared variables
-int *buffer;
-int buffer_size = 0; // Current number of items in the buffer
-int in = 0; // Next place to put the item in the buffer
-int out = 0; // Next place to take the item from the buffer
-int next_produced = 0; // Next value to be produced
-
-// Mutex and condition variables
-pthread_mutex_t mutex;
-pthread_cond_t can_produce;
-pthread_cond_t can_consume;
+# include "helpers.h"
 
 void *producer(void *param) {
+    producer_shared_params *params = (producer_shared_params *)param;
+    shared_variables *shared = params->shared;
     while (1) {
-        pthread_mutex_lock(&mutex); // Start of critical section
+        pthread_mutex_lock(&shared->mutex); // Start of critical section
         
-        while (buffer_size == params.buffer_size)
-            pthread_cond_wait(&can_produce, &mutex);
+        /* If the buffer is full, wait until the consumers
+         * consume an item
+         */
+        while (shared->items_in_buffer == shared->buffer_size)
+            pthread_cond_wait(&shared->can_produce, &shared->mutex);
         
-        if (next_produced == params.upper_limit + 2) {
-            pthread_cond_broadcast(&can_produce);
-            pthread_cond_broadcast(&can_consume);
-            pthread_mutex_unlock(&mutex);
+        /* +2 here because we place upper_limit + 1 to let
+         * the consumers know that we are done producing
+         */
+        if (params->next_produced == shared->upper_limit + 2) {
+            pthread_cond_signal(&shared->can_produce);
+            pthread_cond_signal(&shared->can_consume);
+            pthread_mutex_unlock(&shared->mutex);
             break;
         }
-        buffer[in] = next_produced;
-        next_produced++;
-        in = (in + 1) % params.buffer_size;
-        buffer_size++;
+        shared->buffer[params->in] = params->next_produced++;
+        params->in = (params->in + 1) % shared->buffer_size;
+        shared->items_in_buffer++;
 
-        pthread_cond_signal(&can_consume);
-        pthread_mutex_unlock(&mutex); // End of critical section
+        pthread_cond_signal(&shared->can_consume);
+        pthread_mutex_unlock(&shared->mutex); // End of critical section
     }
 	
 	return NULL;
 }
 
-void *consumer(void *id) {
-    long consumer_id = (long)id;
+void *consumer(void *param) {
+    consumer_thread_params *thread_params = (consumer_thread_params *)param;
+    consumer_shared_params *params = thread_params->params;
+    shared_variables *shared = params->shared;
+    long consumer_id = thread_params->id;
 
     while (1) {
-        pthread_mutex_lock(&mutex); // Start of critical section
+        pthread_mutex_lock(&shared->mutex); // Start of critical section
 
-        while (buffer_size == 0)
-            pthread_cond_wait(&can_consume, &mutex);
+        while (shared->items_in_buffer == 0)
+            pthread_cond_wait(&shared->can_consume, &shared->mutex);
 
-        int item = buffer[out];
-        if (item == params.upper_limit + 1) {
-            pthread_cond_broadcast(&can_produce);
-            pthread_cond_broadcast(&can_consume);   
-            pthread_mutex_unlock(&mutex);
+        int item = shared->buffer[params->out];
+        /* If the item is upper_limit + 1, then we know that
+         * the producer is done producing and we can exit
+         */
+        if (item == shared->upper_limit + 1) {
+            pthread_cond_broadcast(&shared->can_produce);
+            pthread_cond_broadcast(&shared->can_consume);   
+            pthread_mutex_unlock(&shared->mutex);
             break;
         }  
-        out = (out + 1) % params.buffer_size;
-        buffer_size--;
+        params->out = (params->out + 1) % shared->buffer_size;
+        shared->items_in_buffer--;
 
         fprintf(stdout, "%d, %ld\n", item, consumer_id);
-        pthread_cond_signal(&can_produce);
-        pthread_mutex_unlock(&mutex); // End of critical section
+        pthread_cond_signal(&shared->can_produce);
+        pthread_mutex_unlock(&shared->mutex); // End of critical section
     }
 	
 	return NULL;
@@ -74,29 +72,37 @@ void *consumer(void *id) {
 
 
 int main(int argc, char *argv[]) {
-    get_input_params(argc, argv, &params);
-
-    // Allocate memory for the buffer based on the determined size
-    buffer = (int *)malloc(params.buffer_size * sizeof(int));
-    if (buffer == NULL) {
-        fprintf(stderr, "Failed to allocate memory for the buffer\n");
+    input_params params;
+    shared_variables shared;
+    producer_shared_params producer_params;
+    consumer_shared_params consumer_params;
+    /* Initialize all the variables and parameters
+     * needed for the producer and consumer threads
+     */
+    if (get_input_params(argc, argv, &params) != 0)
         return 1;
-    }
-
-    // Initialize mutex and condition variables
-    pthread_mutex_init(&mutex, NULL);
-    pthread_cond_init(&can_produce, NULL);
-    pthread_cond_init(&can_consume, NULL);
+    if (initialize_shared_variables(&shared, &params) != 0)
+        return 1;
+    if (initialize_producer_params(&producer_params, &shared) != 0)
+        return 1;
+    if (initialize_consumer_params(&consumer_params, &shared) != 0)
+        return 1;
 
     // Create producer and consumer threads
     pthread_t producers[params.num_producers];
     pthread_t consumers[params.num_consumers];
 
-    for (long i = 0; i < params.num_producers; i++)
-        pthread_create(&producers[i], NULL, producer, NULL);
+    // Consumer specific variables
+    consumer_thread_params consumer_thread_params[params.num_consumers];
 
-    for (long i = 0; i < params.num_consumers; i++)
-        pthread_create(&consumers[i], NULL, consumer, (void *)i);
+    for (long i = 0; i < params.num_producers; i++)
+        pthread_create(&producers[i], NULL, producer, (void *)&producer_params);
+
+    for (long i = 0; i < params.num_consumers; i++) {
+        consumer_thread_params[i].params = &consumer_params;
+        consumer_thread_params[i].id = i;
+        pthread_create(&consumers[i], NULL, consumer, (void *)&consumer_thread_params[i]);
+    }
 
     // Cleanup
     for (int i = 0; i < params.num_producers; i++) 
@@ -104,12 +110,12 @@ int main(int argc, char *argv[]) {
     
     for (int i = 0; i < params.num_consumers; i++) 
         pthread_join(consumers[i], NULL);   
-    pthread_mutex_destroy(&mutex);
-    pthread_cond_destroy(&can_produce);
-    pthread_cond_destroy(&can_consume);
+    pthread_mutex_destroy(&shared.mutex);
+    pthread_cond_destroy(&shared.can_produce);
+    pthread_cond_destroy(&shared.can_consume);
     
     // Free the allocated buffer
-    free(buffer);
+    free(shared.buffer);
 
     return 0;
 }
