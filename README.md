@@ -162,7 +162,7 @@ have, why?
 ### Experimental assessment of binary semaphore and spinlock
 1. Result of elapsed time for operations using mutexes and spinlocks as a function of buffer sizes.
 ![buffersize](https://github.com/carterww/producersconsumers/assets/110314087/c574135e-78b1-4a05-a616-dbf5ea320b37)
-- Analyis
+- Analysis
     - Mutex
         - The elapsed time using mutexes shows an increase as the buffer size increases from to 20 and then drops off significantly as it reaches 30. This suggests a buffer size 30 may allow for more efficient management of threads with mutexes in this scenario.
         - The performance decreases again at a buffer size of 40 and more before steadily improving as the buffer size continues to increase.
