@@ -1,7 +1,10 @@
+#include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "helpers.h"
 
@@ -33,19 +36,26 @@ int initialize_shared_variables(shared_variables *shared, input_params *params) 
         fprintf(stderr, "Failed to allocate memory for the buffer\n");
         return 1;
     }
-    shared->items_in_buffer = 0;
     shared->buffer_size = params->buffer_size;
     shared->upper_limit = params->upper_limit;
     /* Initialize pthread stuff */
+    #ifdef MUTEX
     if (pthread_mutex_init(&shared->mutex, NULL) != 0) {
         fprintf(stderr, "Failed to initialize mutex\n");
         return 1;
     }
-    if (pthread_cond_init(&shared->can_produce, NULL) != 0) {
+    #endif
+    #ifdef SPINLOCK
+    if (pthread_spin_init(&shared->spinlock, 0) != 0) {
+        fprintf(stderr, "Failed to initialize spinlock\n");
+        return 1;
+    }
+    #endif
+    if (sem_init(&shared->can_produce, 0, params->buffer_size) != 0) {
         fprintf(stderr, "Failed to initialize condition variable\n");
         return 1;
     }
-    if (pthread_cond_init(&shared->can_consume, NULL) != 0) {
+    if (sem_init(&shared->can_consume, 0, 0) != 0) {
         fprintf(stderr, "Failed to initialize condition variable\n");
         return 1;
     }
@@ -62,4 +72,43 @@ int initialize_consumer_params(consumer_shared_params *params, shared_variables 
     params->shared = shared;
     params->out = 0;
     return 0;
+}
+
+
+long get_time_diff(struct timespec *start, struct timespec *end) {
+    time_t seconds = end->tv_sec - start->tv_sec;
+    long nanoseconds = end->tv_nsec - start->tv_nsec;
+    /* Convert to milliseconds */
+    return seconds * 1000 + nanoseconds / 1000000;
+}
+
+/* I want to output this as a csv file for making graphs and plotting in python */
+void print_results(struct timespec *start, struct timespec *end, input_params *params) {
+    #ifdef MUTEX
+    char *filename = "results_mutex.csv";
+    #endif
+    #ifdef SPINLOCK
+    char *filename = "results_spinlock.csv";
+    #endif
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL) {
+        /* Need to create the file */
+        fp = fopen(filename, "a");
+        if (fp == NULL) {
+            fprintf(stderr, "Failed to open file %s\n", filename);
+            return;
+        }
+        fprintf(fp, "buffer_size,num_producers,num_consumers,upper_limit,time_ms\n");
+    } else {
+        fclose(fp);
+        fp = fopen(filename, "a");
+        if (fp == NULL) {
+            fprintf(stderr, "Failed to open file %s\n", filename);
+            return;
+        }
+    }
+    fprintf(fp, "%ld,%ld,%ld,%d,%ld\n", params->buffer_size,
+            params->num_producers, params->num_consumers,
+            params->upper_limit, get_time_diff(start, end));
+    fclose(fp);
 }

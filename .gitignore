@@ -50,3 +50,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# From custom make
+spinlock
+mutex
+spinlock-exp
+mutex-exp

@@ -1,81 +1,142 @@
+#include <bits/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 # include "helpers.h"
 
+void lock(shared_variables *shared) {
+    #ifdef MUTEX
+    pthread_mutex_lock(&shared->mutex);
+    #endif
+    #ifdef SPINLOCK
+    pthread_spin_lock(&shared->spinlock);
+    #endif
+}
+
+void unlock(shared_variables *shared) {
+    #ifdef MUTEX
+    pthread_mutex_unlock(&shared->mutex);
+    #endif
+    #ifdef SPINLOCK
+    pthread_spin_unlock(&shared->spinlock);
+    #endif
+}
+
 void *producer(void *param) {
+    /* Get all the variables from the passed in struct */
     producer_shared_params *params = (producer_shared_params *)param;
     shared_variables *shared = params->shared;
+
     while (1) {
-        pthread_mutex_lock(&shared->mutex); // Start of critical section
-        
-        /* If the buffer is full, wait until the consumers
-         * consume an item
+        /* This is the entry section.
+         * No two producers should be in this section at the same time
+         * because things like shared->items_in_buffer, params->in, and
+         * params->next_produced are shared between all the producers
+         * and some by consumers.
          */
-        while (shared->items_in_buffer == shared->buffer_size)
-            pthread_cond_wait(&shared->can_produce, &shared->mutex);
+        lock(shared);
+
+        /* If the buffer is full, then we wait until a consumer
+         * consumes an item and signals us that we can produce
+         * again
+         */
+        if (sem_trywait(&shared->can_produce) != 0) {
+            unlock(shared);
+            sem_wait(&shared->can_produce);
+            lock(shared);
+        }
         
         /* +2 here because we place upper_limit + 1 to let
          * the consumers know that we are done producing
          */
         if (params->next_produced == shared->upper_limit + 2) {
-            pthread_cond_signal(&shared->can_produce);
-            pthread_cond_signal(&shared->can_consume);
-            pthread_mutex_unlock(&shared->mutex);
+            unlock(shared);
+            sem_post(&shared->can_produce);
+            sem_post(&shared->can_consume);
             break;
         }
+        /* Place the next_produced item into the buffer */
         shared->buffer[params->in] = params->next_produced++;
         params->in = (params->in + 1) % shared->buffer_size;
-        shared->items_in_buffer++;
 
-        pthread_cond_signal(&shared->can_consume);
-        pthread_mutex_unlock(&shared->mutex); // End of critical section
+        /* Exit section */
+        unlock(shared);
+
+        /* Signal the consumers that they can consume.
+         * Needs to be outside of the critical section
+         * in case this causes a context switch. If that
+         * happened, the lock would still be held.
+         */
+        sem_post(&shared->can_consume);
     }
 	
 	return NULL;
 }
 
 void *consumer(void *param) {
+    /* Get all the variables from the passed in struct */
     consumer_thread_params *thread_params = (consumer_thread_params *)param;
     consumer_shared_params *params = thread_params->params;
     shared_variables *shared = params->shared;
+    #ifndef EXPERIMENTAL
     long consumer_id = thread_params->id;
+    #endif
 
     while (1) {
-        pthread_mutex_lock(&shared->mutex); // Start of critical section
+        /* This is the entry section.
+         * Similar to the producer, no two consumers should be in this
+         * section at the same time because things like shared->items_in_buffer,
+         * params->out, and shared->buffer are shared between all the consumers
+         * and some by producers.
+         */
+        lock(shared);
 
-        while (shared->items_in_buffer == 0)
-            pthread_cond_wait(&shared->can_consume, &shared->mutex);
+        /* Same as producer, just wait until we can consume */
+        if (sem_trywait(&shared->can_consume) != 0) {
+            unlock(shared);
+            sem_wait(&shared->can_consume);
+            lock(shared);
+        }
 
         int item = shared->buffer[params->out];
         /* If the item is upper_limit + 1, then we know that
          * the producer is done producing and we can exit
          */
         if (item == shared->upper_limit + 1) {
-            pthread_cond_broadcast(&shared->can_produce);
-            pthread_cond_broadcast(&shared->can_consume);   
-            pthread_mutex_unlock(&shared->mutex);
+            unlock(shared);
+            sem_post(&shared->can_consume);
+            sem_post(&shared->can_produce);
             break;
-        }  
+        }
         params->out = (params->out + 1) % shared->buffer_size;
-        shared->items_in_buffer--;
 
+        #ifndef EXPERIMENTAL
         fprintf(stdout, "%d, %ld\n", item, consumer_id);
-        pthread_cond_signal(&shared->can_produce);
-        pthread_mutex_unlock(&shared->mutex); // End of critical section
+        #endif
+        /* Exit section */
+        unlock(shared);
+
+        /* After unlock for same reason as producer */
+        sem_post(&shared->can_produce);
     }
 	
 	return NULL;
 }
 
-
 int main(int argc, char *argv[]) {
+    #ifdef EXPERIMENTAL
+    struct timespec start, end;
+    clock_gettime(CLOCK_REALTIME, &start);
+    #endif
     input_params params;
     shared_variables shared;
     producer_shared_params producer_params;
     consumer_shared_params consumer_params;
+
     /* Initialize all the variables and parameters
      * needed for the producer and consumer threads
      */
@@ -109,13 +170,21 @@ int main(int argc, char *argv[]) {
         pthread_join(producers[i], NULL);
     
     for (int i = 0; i < params.num_consumers; i++) 
-        pthread_join(consumers[i], NULL);   
+        pthread_join(consumers[i], NULL);
+
+    #ifdef MUTEX
     pthread_mutex_destroy(&shared.mutex);
-    pthread_cond_destroy(&shared.can_produce);
-    pthread_cond_destroy(&shared.can_consume);
-    
+    #endif
+    #ifdef SPINLOCK
+    pthread_spin_destroy(&shared.spinlock);
+    #endif
+    sem_destroy(&shared.can_produce);
+    sem_destroy(&shared.can_consume);
     // Free the allocated buffer
     free(shared.buffer);
-
+    #ifdef EXPERIMENTAL
+    clock_gettime(CLOCK_REALTIME, &end);
+    print_results(&start, &end, &params);
+    #endif
     return 0;
 }

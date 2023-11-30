@@ -2,6 +2,17 @@
 #define HELPERS_H
 
 #include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <time.h>
+
+/* For LSP and in case no define is 
+ * specified at compile time */
+#ifndef SPINLOCK
+#ifndef MUTEX
+#define MUTEX
+#endif
+#endif
 
 /* Inputs from command line */
 typedef struct {
@@ -15,11 +26,15 @@ typedef struct {
 typedef struct {
     int *buffer;
     size_t buffer_size;
-    size_t items_in_buffer;
     unsigned int upper_limit;
+    #ifdef MUTEX
     pthread_mutex_t mutex;
-    pthread_cond_t can_produce;
-    pthread_cond_t can_consume;
+    #endif
+    #ifdef SPINLOCK
+    pthread_spinlock_t spinlock;
+    #endif
+    sem_t can_produce;
+    sem_t can_consume;
 } shared_variables;
 
 /* Parameters for producers and consumers */
@@ -47,5 +62,9 @@ int get_input_params(int argc, char *argv[], input_params *params);
 int initialize_shared_variables(shared_variables *shared, input_params *params);
 int initialize_producer_params(producer_shared_params *params, shared_variables *shared);
 int initialize_consumer_params(consumer_shared_params *params, shared_variables *shared);
+
+/* Functions for calculating performance and printing results */
+long get_time_diff(struct timespec *start, struct timespec *end);
+void print_results(struct timespec *start, struct timespec *end, input_params *params);
 
 #endif
