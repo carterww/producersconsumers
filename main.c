@@ -6,8 +6,11 @@
 #include <unistd.h>
 #include <semaphore.h>
 
-# include "helpers.h"
+#include "helpers.h"
 
+/* Use these to make single call handled
+ * by both cases
+ */
 void lock(shared_variables *shared) {
     #ifdef MUTEX
     pthread_mutex_lock(&shared->mutex);
@@ -16,7 +19,6 @@ void lock(shared_variables *shared) {
     pthread_spin_lock(&shared->spinlock);
     #endif
 }
-
 void unlock(shared_variables *shared) {
     #ifdef MUTEX
     pthread_mutex_unlock(&shared->mutex);
@@ -39,6 +41,10 @@ void *producer(void *param) {
          * and some by consumers.
          */
         lock(shared);
+        /* Make CS longer */
+        #ifdef EXPERIMENTAL
+        for (size_t i = 0; i < shared->cs_lenth; i++);
+        #endif
 
         /* If the buffer is full, then we wait until a consumer
          * consumes an item and signals us that we can produce
@@ -94,6 +100,10 @@ void *consumer(void *param) {
          * and some by producers.
          */
         lock(shared);
+        /* Make CS longer */
+        #ifdef EXPERIMENTAL
+        for (size_t i = 0; i < params->shared->cs_lenth; i++);
+        #endif
 
         /* Same as producer, just wait until we can consume */
         if (sem_trywait(&shared->can_consume) != 0) {

@@ -20,6 +20,7 @@ typedef struct {
     size_t num_producers;
     size_t num_consumers;
     unsigned int upper_limit;
+    size_t cs_lenth; // For experiment only
 } input_params;
 
 /* Variables shared between producers and consumers */
@@ -27,14 +28,17 @@ typedef struct {
     int *buffer;
     size_t buffer_size;
     unsigned int upper_limit;
-    #ifdef MUTEX
+#ifdef MUTEX
     pthread_mutex_t mutex;
-    #endif
-    #ifdef SPINLOCK
+#endif
+#ifdef SPINLOCK
     pthread_spinlock_t spinlock;
-    #endif
+#endif
     sem_t can_produce;
     sem_t can_consume;
+#ifdef EXPERIMENTAL
+    size_t cs_lenth;
+#endif
 } shared_variables;
 
 /* Parameters for producers and consumers */

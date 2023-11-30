@@ -1,3 +1,4 @@
+.SILENT:
 CS = gcc -Wall main.c helpers.c
 
 all: spinlock mutex spinlock-exp mutex-exp
