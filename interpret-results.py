@@ -8,10 +8,14 @@ MUTEX_FILE = DATA_DIR + "results_mutex.csv"
 
 PLOT_DIR = "plots/"
 
+
 # These values are already sorted by cs_length, buffer size, producer count,
 # consumer count if using the experiment.py script
 sl_df = pd.read_csv(SPINLOCK_FILE)
 m_df = pd.read_csv(MUTEX_FILE)
+
+UPPER_LIMIT = sl_df["upper_limit"].max()
+upper_limit_str = "{:,}".format(UPPER_LIMIT)
 
 # Plot samples against time taken
 print("Plotting elapsed time...")
@@ -20,7 +24,7 @@ ax.plot(sl_df.index, sl_df["time_ms"], 'r', label="Spinlock")
 ax.plot(m_df.index, m_df["time_ms"], 'b', label="Mutex")
 ax.set_xlabel("Sample")
 ax.set_ylabel("Elapsed Time (ms)")
-ax.set_title("Elapsed Time for each sample (700,000 upper limit)")
+ax.set_title("Elapsed Time for each sample ({} upper limit)".format(upper_limit_str))
 ax.legend()
 fig.savefig(PLOT_DIR + "elapsedtime.png")
 
@@ -38,7 +42,7 @@ ax.plot(buff_sl_df["buffer_size"], buff_sl_df["time_ms"], 'ro', label="Spinlock"
 ax.plot(buff_sl_df["buffer_size"], buff_sl_df["time_ms"], 'r')
 ax.set_xlabel("Buffer Size")
 ax.set_ylabel("Elapsed Time (ms)")
-ax.set_title("Elapsed Time for each buffer size (700,000 upper limit)")
+ax.set_title("Elapsed Time for each buffer size ({} upper limit)".format(upper_limit_str))
 ax.legend()
 fig.savefig(PLOT_DIR + "buffersize.png")
 
@@ -56,7 +60,7 @@ ax.plot(prod_sl_df["num_producers"], prod_sl_df["time_ms"], 'ro', label="Spinloc
 ax.plot(prod_sl_df["num_producers"], prod_sl_df["time_ms"], 'r')
 ax.set_xlabel("Number of Producers")
 ax.set_ylabel("Elapsed Time (ms)")
-ax.set_title("Elapsed Time for each number of producers (700,000 upper limit)")
+ax.set_title("Elapsed Time for each number of producers ({} upper limit)".format(upper_limit_str))
 ax.legend()
 fig.savefig(PLOT_DIR + "numproducers.png")
 
@@ -74,7 +78,7 @@ ax.plot(cons_sl_df["num_consumers"], cons_sl_df["time_ms"], 'ro', label="Spinloc
 ax.plot(cons_sl_df["num_consumers"], cons_sl_df["time_ms"], 'r')
 ax.set_xlabel("Number of Consumers")
 ax.set_ylabel("Elapsed Time (ms)")
-ax.set_title("Elapsed Time for each number of consumers (700,000 upper limit)")
+ax.set_title("Elapsed Time for each number of consumers ({} upper limit)".format(upper_limit_str))
 ax.legend()
 fig.savefig(PLOT_DIR + "numconsumers.png")
 
@@ -90,10 +94,8 @@ ax.plot(cs_m_df["cs_length"], cs_m_df["time_ms"], 'bo', label="Mutex")
 ax.plot(cs_m_df["cs_length"], cs_m_df["time_ms"], 'b')
 ax.plot(cs_sl_df["cs_length"], cs_sl_df["time_ms"], 'ro', label="Spinlock")
 ax.plot(cs_sl_df["cs_length"], cs_sl_df["time_ms"], 'r')
-ax.set_xscale('symlog')
-ax.set_yscale('symlog')
 ax.set_xlabel("Critical Section Length")
 ax.set_ylabel("Elapsed Time (ms)")
-ax.set_title("Elapsed Time for each critical section length (700,000 upper limit)")
+ax.set_title("Elapsed Time for each critical section length ({} upper limit)".format(upper_limit_str))
 ax.legend()
 fig.savefig(PLOT_DIR + "cslen.png")

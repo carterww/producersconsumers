@@ -14,8 +14,8 @@ os.system("make all")
 # Run experiment
 buffer_sizes = [10, 20, 30, 40, 50, 100]
 num_threads = [1, 5, 10]
-cs_lengths = [0, 1e2, 1e4]
-combinations = [(i, j, k, q) for i in num_threads for j in num_threads
+cs_lengths = [0, 5, 10]
+combinations = [(i, j, k, 80 * q) for i in num_threads for j in num_threads
                 for k in buffer_sizes for q in cs_lengths]
 # sort combinations by buffer size, producer count, consumer count
 combinations = sorted(combinations, key=lambda x: (x[3], x[2], x[0], x[1]))
