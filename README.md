@@ -41,7 +41,9 @@ have, why?
         while (not at upper limit) {
             aquire lock
             wait on producer semaphore
+
             // Produce an item
+
             post to consumer semaphore
             release lock
         }
@@ -55,8 +57,10 @@ have, why?
         while (not read upper limit) {
             aquire lock
             wait on consuemr semaphore
+
             // Read an item
             // print item
+
             post to producer semaphore
             release lock
         }
@@ -95,22 +99,63 @@ have, why?
 ## Comparison to the Readers-Writers Problem
 ### Analysis
 - The readers-writers problem shares many similarities and differences with the producers-consumers problem. Similarly to the producers-consumers problem, we divide the kinds of processes sharing a critical section(s) into two classes: reader threads and writer threads. A difference, however, is that these two classes are not distinct. A writer has all the abilities of a reader, but it can also write to the memory, shared variable, etc. This means a reader thread is a subclass of a writer thread. In the producers-consumers problem, there are two distinct classes that exclusively compete with members of their own class for entry into their critical section. In the readers-writers problem, both classes are competing with each other for entry into their critical section. 
-- Another major difference between the two problems is the critical sections of their classes of processes. In the producers-consumers problem, there are two critical sections for the producer and consumer. The layouts of these are very similar. The first ensures no two of the same class are modifying the buffer at the same time; the second ensures no overflow or underflow occurs for the producer and consumer respectively. In the readers-writers problem, the critical section(s) layout for the classes are very different. This enforces the idea that the reader is a subclass of a writer, so it must have the same critical section as the writer, but with extra steps. In the simplest form the implementations are:
+- Another major difference between the two problems is the critical sections of their classes of processes. In the producers-consumers problem, there are two critical sections for the producer and consumer. The layouts of these are very similar. The first ensures no two of the same class are modifying the buffer at the same time; the second ensures no overflow or underflow occurs for the producer and consumer respectively. In the readers-writers problem, the critical section layout for the classes are very different. This enforces the idea that the reader is a subclass of a writer, so it must have the same critical section as the writer, but with extra steps. In the simplest form the implementations are:
     - Writer: The writer is very simple. It uses one mutex (binary semaphore) which allows it to enter its critical section and write to something. It then must release this once it is done writing.
-    - Reader: The reader is slightly more complex so it is best to describe it in pseudo code. In this code, the readers all share the *readers_mutex* and the writers and readers share *read_write_mutex*. readcount indicates the number of current readers. If it is 1 in first entry section, we must wait on the *read_write_mutex* in case any writers are writing. If it is 0 in the entry section after reading, we let the writer know it can write by releasing the *read_write_mutex*.
+    - Reader: The reader is slightly more complex so it is best to describe it in pseudo code.
     ```
     while (reading)
+        // Entry section
         wait(readers_mutex)
         readcount++
         if (readcount = 1)
             wait(read_write_mutex)
         signal(readers_mutex)
+
         // Read
+
+        // Exit section
         wait(readers_mutex)
         readcount--
         if (readcount = 0)
             signal(read_write_mutex)
         signal(readers_mutex)
     ```
-- The above implementation is the simplest version, but it suffers from starvation. If there is a constant inflow of readers, such that *readcount* never drops to 0, the writer will never aquire the *read_write_mutex* from the readers. In most cases this is likely unacceptable.
+    - In this code, the readers all share the *readers_mutex* and the writers and readers share *read_write_mutex*. readcount indicates the number of current readers. If it is 1 in the entry section, we must wait on the *read_write_mutex* in case any writers are writing. If it is 0 in the exit section, we let the writer know it can write by releasing the *read_write_mutex*.
+- The above implementation is the simplest version, but it suffers from starvation. If there is a constant inflow of readers, such that *readcount* never drops to 0, the writer will never aquire the *read_write_mutex* from the readers. In most cases this is unacceptable.
 ### Design Without Writer Starvation
+- In order to prevent writer starvation, there needs to be some mechanism, like a queue, that guarentees a thread will be serviced. In order to create this solution, a semaphore that places threads into a queue could be used. This could be accomplished by adding another critical section to the reader and writer. In pseudo code, the new solution would look like this:
+    - Writer:
+    ```
+    while (writing)
+        wait(queue_semaphore)
+        wait(read_write_mutex)
+        
+        // Write
+
+        signal(read_write_mutex)
+        signal(queue_semaphore)
+    ```
+    - Here we add a shared *queue_semaphore*. The entry section to this new critical section puts waiting threads into a FIFO queue when the *wait* cannot be returned immediately. This ensures threads are serviced in the order that they called *wait* on the *queue_semaphore*.
+    - Reader:
+    ```
+    while (reading)
+        // Entry Section
+        wait(queue_semaphore)
+        wait(readers_mutex)
+        readcount++
+        if (readcount = 1)
+            wait(read_write_mutex)
+        signal(queue_semaphore)
+        signal(readers_mutex)
+
+        // Read
+
+        // Exit section
+        wait(readers_mutex)
+        readcount--
+        if (readcount = 0)
+            signal(read_write_mutex)
+        signal(readers_mutex)
+    ```
+    - Here, the new critical section is wrapped around the old entry section. This ensures reader threads are allowed to enter once they have been taken out of the FIFO queue.
+- It is noteworthy that the *queue_semaphore* **must** maintain the order of waiting threads. If it does not, this solution does not prevent starvation.
