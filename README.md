@@ -159,3 +159,39 @@ have, why?
     ```
     - Here, the new critical section is wrapped around the old entry section. This ensures reader threads are allowed to enter once they have been taken out of the FIFO queue.
 - It is noteworthy that the *queue_semaphore* **must** maintain the order of waiting threads. If it does not, this solution does not prevent starvation.
+### Experimental assessment of binary semaphore and spinlock
+1. Result of elapsed time for operations using mutexes and spinlocks as a function of buffer sizes.
+![buffersize](https://github.com/carterww/producersconsumers/assets/110314087/c574135e-78b1-4a05-a616-dbf5ea320b37)
+- Analyis
+    - Mutex
+        - The elapsed time using mutexes shows an increase as the buffer size increases from to 20 and then drops off significantly as it reaches 30. This suggests a buffer size 30 may allow for more efficient management of threads with mutexes in this scenario.
+        - The performance decreases again at a buffer size of 40 and more before steadily improving as the buffer size continues to increase.
+    - Spinlock
+        - The elapsed time using spinlocks starts off steady at 10 to 20 before significantly increasing until about 40.
+        - After as the buffer size is increased to over 40. The performance quickly improves until 50 and then steadily continues to inprove.
+    - Comparison
+        - The mutex implementation was slightly faster than spinlock with any buffer size used.
+        - Both implementations seems to steadily improve linearly in performance as the buffer size increases.
+        - Both seems unstable in their performance with lower buffer sizes
+2. Result of the elapsed time for operations using mutexes and spinlocks as a function of critical section length
+![cslen](https://github.com/carterww/producersconsumers/assets/110314087/0654c522-c1a5-4df8-b546-a5f9700f578c)
+- Analysis
+    - Mutex
+        - Performance steadily increases as the critical section length increases. The increase rate of performance slows slightly as the critical section length increases. Showing some signs of diminishing returns.
+    - Spinlock
+        - Performance steadily increases as the critical section length increases. The increase rate of performance slows slightly as the critical section length increases. Showing some signs of diminishing returns.
+    - Comparison
+        - Both Mutex and Spinlock implementations behave near identically in response to the increase of the critical section length. The mutex performed slightly better than the spinlock.
+3. Result of the elapsed time for mutex and spinlock mechanisms as a function of consumers number
+![numconsumers](https://github.com/carterww/producersconsumers/assets/110314087/90e659d5-290e-449d-83ab-c0706ff97bdf)
+- Analysis
+    - Comparison
+        - Both mutex and spinlock behave near identically in response to the increase of consumers number. The performance increases linearly.
+        - Mutex is consistently faster than spinlock
+4. Result of the elapsed time for mutex and spinlock mechanisms as a function of consumers number
+![numproducers](https://github.com/carterww/producersconsumers/assets/110314087/cbae844d-3581-4568-8655-6e83b750ea8f)
+- Analysis
+    - Comparison
+        - Both mutex and spinlock implementations have their performance increased as the number of producers increase.
+        - The rate of increase seems to also increase as the producers increase. Though this may not be true as the producers continues to increase past our graphs boundary
+        - Mutex is consistently faster than spinlock
