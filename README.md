@@ -98,14 +98,14 @@ have, why?
 
 ## Experimental Assessment of Mutex and Spinlock
 Experimental results were gathered by testing the elapsed time of each program while using a mutex (binary semaphore) and spinlock. These experiments were run with a combination of different user defined variables:
-1. Buffer Size: Size of the buffer.
-    - [10, 20, 30, 40, 50, 100]
-2. Num Producers: Number of producer threads.
-    - [1, 5, 10]
-3. Num Consumers: Number of consumer threads.
-    - [1, 5, 10]
-4. Length of Critical Section: Integer that each critical section loops after entering.
-    - [0, 400, 800]
+    1. Buffer Size: Size of the buffer.
+        - [10, 20, 30, 40, 50, 100]
+    2. Num Producers: Number of producer threads.
+        - [1, 5, 10]
+    3. Num Consumers: Number of consumer threads.
+        - [1, 5, 10]
+    4. Length of Critical Section: Integer that each critical section loops after entering.
+        - [0, 400, 800]
 A total of 162 tests were run for each implementation using a combination of these variables. The tables and graphs below average the time elapsed for each sample that uses that variable. Example: The time elapsed for the mutex implementation's with buffer size of 10 averages all samples with a buffer size of 10.
 1. Result of elapsed time for operations using mutexes and spinlocks as a function of buffer sizes.
 ![image](https://github.com/carterww/producersconsumers/assets/110314087/f444a2bb-e16e-42ea-9b68-d829c2e0da3c)
