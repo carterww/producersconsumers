@@ -161,10 +161,11 @@ have, why?
 - It is noteworthy that the *queue_semaphore* **must** maintain the order of waiting threads. If it does not, this solution does not prevent starvation.
 ### Experimental assessment of binary semaphore and spinlock
 1. Result of elapsed time for operations using mutexes and spinlocks as a function of buffer sizes.
+![image](https://github.com/carterww/producersconsumers/assets/110314087/f444a2bb-e16e-42ea-9b68-d829c2e0da3c)
 ![buffersize](https://github.com/carterww/producersconsumers/assets/110314087/c574135e-78b1-4a05-a616-dbf5ea320b37)
 - Analysis
     - Mutex
-        - The elapsed time using mutexes shows an increase as the buffer size increases from to 20 and then drops off significantly as it reaches 30. This suggests a buffer size 30 may allow for more efficient management of threads with mutexes in this scenario.
+        - The elapsed time using mutexes shows an increase as the buffer size increases from to 20 and then drops off significantly as it reaches 30. This suggests a buffer size 30 may allow for more efficient management of threads with mutexes in this scenario. 
         - The performance decreases again at a buffer size of 40 and more before steadily improving as the buffer size continues to increase.
     - Spinlock
         - The elapsed time using spinlocks starts off steady at 10 to 20 before significantly increasing until about 40.
@@ -174,6 +175,7 @@ have, why?
         - Both implementations seems to steadily improve linearly in performance as the buffer size increases.
         - Both seems unstable in their performance with lower buffer sizes
 2. Result of the elapsed time for operations using mutexes and spinlocks as a function of critical section length
+![image](https://github.com/carterww/producersconsumers/assets/110314087/f9e65884-f438-49af-a791-4810ce8edc9f)
 ![cslen](https://github.com/carterww/producersconsumers/assets/110314087/0654c522-c1a5-4df8-b546-a5f9700f578c)
 - Analysis
     - Mutex
@@ -183,12 +185,14 @@ have, why?
     - Comparison
         - Both Mutex and Spinlock implementations behave near identically in response to the increase of the critical section length. The mutex performed slightly better than the spinlock.
 3. Result of the elapsed time for mutex and spinlock mechanisms as a function of consumers number
+![image](https://github.com/carterww/producersconsumers/assets/110314087/c64823d0-9ff1-415e-8308-92609d300227)
 ![numconsumers](https://github.com/carterww/producersconsumers/assets/110314087/90e659d5-290e-449d-83ab-c0706ff97bdf)
 - Analysis
     - Comparison
         - Both mutex and spinlock behave near identically in response to the increase of consumers number. The performance increases linearly.
         - Mutex is consistently faster than spinlock
 4. Result of the elapsed time for mutex and spinlock mechanisms as a function of consumers number
+![image](https://github.com/carterww/producersconsumers/assets/110314087/a6a37420-68c5-4324-ae3b-f09a9a07f9aa)
 ![numproducers](https://github.com/carterww/producersconsumers/assets/110314087/cbae844d-3581-4568-8655-6e83b750ea8f)
 - Analysis
     - Comparison
