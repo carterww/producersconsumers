@@ -1,13 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.scale import LogScale
 
 DATA_DIR = "data/"
 SPINLOCK_FILE = DATA_DIR + "results_spinlock.csv"
 MUTEX_FILE = DATA_DIR + "results_mutex.csv"
 
 PLOT_DIR = "plots/"
-
 
 # These values are already sorted by cs_length, buffer size, producer count,
 # consumer count if using the experiment.py script
@@ -35,6 +33,8 @@ buff_m_df = m_df.groupby("buffer_size").mean().reset_index()
 buff_sl_df = sl_df.groupby("buffer_size").mean().reset_index()
 buff_m_df.sort_values(by="buffer_size", inplace=True, ignore_index=True)
 buff_sl_df.sort_values(by="buffer_size", inplace=True, ignore_index=True)
+buff_m_df.filter(["buffer_size", "time_ms"]).to_csv(DATA_DIR + "buff_m.csv", index=False)
+buff_sl_df.filter(["buffer_size", "time_ms"]).to_csv(DATA_DIR + "buff_sl.csv", index=False)
 fig, ax = plt.subplots()
 ax.plot(buff_m_df["buffer_size"], buff_m_df["time_ms"], 'bo', label="Mutex")
 ax.plot(buff_m_df["buffer_size"], buff_m_df["time_ms"], 'b')
@@ -53,6 +53,8 @@ prod_m_df = m_df.groupby("num_producers").mean().reset_index()
 prod_sl_df = sl_df.groupby("num_producers").mean().reset_index()
 prod_m_df.sort_values(by="num_producers", inplace=True, ignore_index=True)
 prod_sl_df.sort_values(by="num_producers", inplace=True, ignore_index=True)
+prod_m_df.filter(["num_producers", "time_ms"]).to_csv(DATA_DIR + "prod_m.csv", index=False)
+prod_sl_df.filter(["num_producers", "time_ms"]).to_csv(DATA_DIR + "prod_sl.csv", index=False)
 fig, ax = plt.subplots()
 ax.plot(prod_m_df["num_producers"], prod_m_df["time_ms"], 'bo', label="Mutex")
 ax.plot(prod_m_df["num_producers"], prod_m_df["time_ms"], 'b')
@@ -72,6 +74,8 @@ cons_sl_df = sl_df.groupby("num_consumers").mean().reset_index()
 cons_m_df.sort_values(by="num_consumers", inplace=True, ignore_index=True)
 cons_sl_df.sort_values(by="num_consumers", inplace=True, ignore_index=True)
 fig, ax = plt.subplots()
+cons_m_df.filter(["num_consumers", "time_ms"]).to_csv(DATA_DIR + "cons_m.csv", index=False)
+cons_sl_df.filter(["num_consumers", "time_ms"]).to_csv(DATA_DIR + "cons_sl.csv", index=False)
 ax.plot(cons_m_df["num_consumers"], cons_m_df["time_ms"], 'bo', label="Mutex")
 ax.plot(cons_m_df["num_consumers"], cons_m_df["time_ms"], 'b')
 ax.plot(cons_sl_df["num_consumers"], cons_sl_df["time_ms"], 'ro', label="Spinlock")
@@ -89,6 +93,8 @@ cs_m_df = m_df.groupby("cs_length").mean().reset_index()
 cs_sl_df = sl_df.groupby("cs_length").mean().reset_index()
 cs_m_df.sort_values(by="cs_length", inplace=True, ignore_index=True)
 cs_sl_df.sort_values(by="cs_length", inplace=True, ignore_index=True)
+cs_m_df.filter(["cs_length", "time_ms"]).to_csv(DATA_DIR + "cs_m.csv", index=False)
+cs_sl_df.filter(["cs_length", "time_ms"]).to_csv(DATA_DIR + "cs_sl.csv", index=False)
 fig, ax = plt.subplots()
 ax.plot(cs_m_df["cs_length"], cs_m_df["time_ms"], 'bo', label="Mutex")
 ax.plot(cs_m_df["cs_length"], cs_m_df["time_ms"], 'b')
